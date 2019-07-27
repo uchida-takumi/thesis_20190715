@@ -33,11 +33,11 @@ from surprise import SVD
 svd = SVD()
 svd = surprise_algo_wrapper(svd)
 
-from src.modules.DNN_recommender_algo import RFNN
+from src.DNN_recommender import RFNN
 rfnn = RFNN(max_user, max_item, embedding_size=8, dnn_hidden_units=(128, 128), l2_reg_embedding=1e-5)
 rfnn = keras_model_wrapper(rfnn, epochs=5,batch_size=128) # メモ：epochs=5,batch_size=128が最高性能が出たことを手動で検証。
 
-from src.modules.DNN_recommender_algo import R_Wide_and_Deep
+from src.DNN_recommender import R_Wide_and_Deep
 rwd = R_Wide_and_Deep(max_user, max_item, embedding_size=8, dnn_hidden_units=(128, 128), l2_reg_embedding=1e-5)
 rwd = keras_model_wrapper(rwd, epochs=5,batch_size=128)
 
