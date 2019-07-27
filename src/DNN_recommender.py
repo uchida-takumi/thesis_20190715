@@ -26,12 +26,7 @@ def RFNN(max_user, max_item,
                     )([user_embedding, item_embedding])
     
     # --- HIDDEN --- #
-    for i,d in enumerate(dnn_hidden_units):
-        x = Dense(
-                d, activation='relu', use_bias=True, 
-                kernel_regularizer=regularizers.l2(l2_reg),
-                name='hidden_{}'.format(i)
-                )(x)
+    x = multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name='hidden')
 
     # --- OUTPUT --- #
     output = Dense(
@@ -40,32 +35,18 @@ def RFNN(max_user, max_item,
                     name='output'
                    )(x)
     
-    # --- build as model --- #
+    # --- build as MODEL --- #
     model = Model(inputs=[input_user, input_item], outputs=[output])
     
     ## compile 
     model.compile(
             optimizer=optimizers.Adam(),
             loss=losses.mean_absolute_error
-            )
-    
+            )    
     return model
     
 
-    '''
-    user_embedding = Embedding(
-            input_dim=max_user,
-            output_dim=embedding_size,
-            embeddings_initializer=almost0init,
-            embeddings_regularizer=regularizers.l2(l2_reg),
-            name='embedding_user'            
-            )(user)
-    user_embedding = Flatten(name='flatten_user')(user_embedding)
-    '''
-    
-
-
-
+def R_Wide_and_Deep
 
 
 #####################
@@ -81,6 +62,15 @@ def id_embedding(input_, max_, embedding_size, l2_reg, sufix_name):
     id_embedding = Flatten(name='flatten_{}'.format(sufix_name))(id_embedding)
     return id_embedding
 
+def multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name):
+    for i,d in enumerate(dnn_hidden_units):
+        x = Dense(
+                d, activation='relu', use_bias=True, 
+                kernel_regularizer=regularizers.l2(l2_reg),
+                name=prefix_name+'_{}'.format(i)
+                )(x)
+    return x
+    
     
 #####################
 if __name__ == 'how to use':
