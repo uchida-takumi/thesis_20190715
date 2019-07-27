@@ -6,15 +6,16 @@ wrapper function for suprise.alogo to be able to use
 """
 
 import pandas as pd
-import numpy as np
 
 from surprise import Dataset
 from surprise import Reader
 
+from copy import deepcopy
 
 class algo_wrapper:
     def __init__(self, algo, X_columns={'user':0, 'item':1}):
         self.algo = algo
+        self.init_algo = deepcopy(algo)
         self.X_columns = X_columns
 
     def fit(self, X, y):
@@ -26,6 +27,9 @@ class algo_wrapper:
         for u,i in X[:, [self.X_columns['user'], self.X_columns['item']]]:
             predicted_result.append(self.algo.predict(u,i).est)
         return predicted_result
+    
+    def reset(self):
+        self.algo = self.init_algo
 
 
 def convert_to_Surprise_dataset(X, y, X_columns={'user':0, 'item':1}):
@@ -53,9 +57,10 @@ if __name__ == 'how to use':
     
     X, y = data[column_names].values, data[label_name].values
 
-    #algo = KNNBasic()
     algo = SVD()
     algo_w = algo_wrapper(algo)
 
     algo_w.fit(X, y)
     algo_w.predict(X)
+    algo_w.reset()
+    
