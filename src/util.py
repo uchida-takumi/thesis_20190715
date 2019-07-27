@@ -50,6 +50,26 @@ class id_transformer:
         new_id_convert_dict = {i:now_max_id+1+index for index,i in enumerate(ids_)}
         self.id_convert_dict.update(new_id_convert_dict)
 
+def get_rank(scores, target_indice=0):
+    """
+    EXAMPLE
+    -------------
+    scores = [2, 1.2, 4, -3]
+    target_indice = 0
+    print( get_rank(scores, target_indice) )
+     > 2 # score[target_indice] is the 2'nd biggest in scores.
+
+    scores = [2, 1.2, 4, -3, 2, 2]
+    target_indice = 0
+    print( get_rank(scores, target_indice) )
+     > 3 # return middle of ranks when the value of target_indice is not only one.
+    """
+    target_val = scores[target_indice]
+    scores = np.sort(scores)[::-1]
+    indices = np.where(scores==target_val)[0]
+    return int(indices.mean()) + 1
+    
+
 
 def get_key_from_val(dict_, val, unknown=None):
     """

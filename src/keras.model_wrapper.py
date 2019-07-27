@@ -58,9 +58,9 @@ if __name__ == 'how to use':
     
     max_user, max_item = X[:,0].max()+1, X[:,1].max()+1
     model = RFNN(max_user, max_item)
-    model_w = keras_model_wrapper(model)
+    model = keras_model_wrapper(model)
 
-    model_w.fit(X, y)
-    model_w.predict(X)
-    model_w.reset()
+    model.fit(X, y)
+    model.predict(X)
+    model.reset()
     
