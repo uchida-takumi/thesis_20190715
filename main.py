@@ -18,7 +18,7 @@ label_name = 'rating'
 X, y = data[column_names].values, data[label_name].values
 
 #### for test ####
-X, y = X[:10000], y[:10000]
+#X, y = X[:10000], y[:10000]
 ##################
 max_user = int(X[:,0].max()) + 1; max_item = int(X[:,1].max()) + 1
 
@@ -46,12 +46,12 @@ rwd = keras_model_wrapper(rwd, epochs=5,batch_size=128)
 # 3. evaluate models with src/modules/evaluatinos/*
 from src.evaluation import cv
 
-k_hold = 2
+k_hold = 10
 need_hit = True
 
-svd_result  = cv(svd, X, y, k_hold=k_hold, need_hit=need_hit)
-rfnn_result = cv(rfnn, X, y, k_hold=k_hold, need_hit=need_hit)
-rwd_result  = cv(rwd, X, y, k_hold=k_hold, need_hit=need_hit)
+svd_result  = cv(svd, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rfnn_result = cv(rfnn, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rwd_result  = cv(rwd, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
 
 for model_name, _result in [('svd',svd_result), ('rfnn',rfnn_result), ('rwd',rwd_result)]:
     for key in ['metrics_by_labeled_user', 'metrics_by_labeled_item', 'metrics_by_labeled_user_item']:
