@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-"""
-
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.layers import Input, Dense, Embedding, Flatten, Concatenate
@@ -122,8 +119,7 @@ def multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name):
 
     
 #####################
-if __name__ == 'how to use':
-    
+if __name__ == 'how to use':    
     # load dataset
     import numpy as np
     X = np.array([

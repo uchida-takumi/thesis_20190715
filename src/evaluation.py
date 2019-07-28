@@ -31,6 +31,7 @@ def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5,
 
     result_dict = defaultdict(list)
     for k, (train, test) in enumerate(train_test_indices):
+        print('k_hold = {}/{}'.format(k+1, k_hold))
         # model reset
         model.reset()
         
@@ -67,8 +68,7 @@ def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5,
                 result_df.loc[hit_indice, column] = (result_df.loc[hit_indice, 'rank']<=top_n).astype(int)
                 result_dict[column+'_precision'].append(result_df[column].mean())
                 result_dict[column+'_recall'].append(result_df[column].mean() / top_n)
-            result_dict
-
+            
         # set result_dict summeries of result_df.
         result_dict['MAE'].append(np.mean(result_df['abs_error'])) 
         result_dict['metrics_by_labeled_user'].append(label_groupby(result_df, by=['labeled_user']))
@@ -77,8 +77,13 @@ def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5,
                     
         if detail:
             result_dict['detail'].append(result_df)
-        
-        return result_dict
+    
+    return_dict = dict(
+            each_k_hold=result_dict,
+            total_mean=total_mean_result_dict(result_dict),
+            )
+
+    return return_dict
                 
         
 def random_split(X, test_rate=0.3):
@@ -122,5 +127,52 @@ def label_groupby(result_df,
     agg_dict = {col:[np.mean, np.median, np.std] for col in metrics_cols}
     agg_dict.update({'n_sample':sum})
     return _df.groupby(by=by).agg(agg_dict)
-     
+
+def total_mean_result_dict(result_dict):
+    keys = [key for key in result_dict if re.match(r'(MAE|hit_top_)', key)]
+    _dict0 = {key:np.mean(result_dict[key]) for key in keys}
+    
+    keys = [key for key in result_dict if re.match(r'metrics_by_', key)]
+    def _groupby_mean(key):
+        _df = pd.concat(cv_result[key])
+        return _df.groupby(by=_df.index).mean()         
+    _dict1 = {key:_groupby_mean(key) for key in keys}
+    
+    _dict0.update(_dict1)
+    return _dict1
+    
+    
+
+
+if __name__ == 'how to use':
+    
+    # load data
+    import pandas as pd
+    csv_fp = 'data/ml-latest-small/ratings.csv'
+    data = pd.read_csv(csv_fp)
+    column_names = ['userId', 'movieId']
+    label_name = 'rating'    
+    X, y = data[column_names].values, data[label_name].values
+    X, y = X[:10000], y[:10000] 
+
+    # build recommender model and wrap to adjust I/O     
+    from src.surprise_algo_wrapper import surprise_algo_wrapper    
+    from surprise import SVD
+    svd = surprise_algo_wrapper(SVD())
+    
+    # run cv
+    cv_result = cv(svd, X, y, k_hold=3)
+    
+    # MAEs
+    print(cv_result['MAE'])
+    
+    # metrics keys
+    print(cv_result.keys())
+    
+    # group by label
+    _df = pd.concat(cv_result['metrics_by_labeled_item'])
+    total_mean_df = _df.groupby(by=_df.index).mean()
+    print(total_mean_df)
+    
+    
     

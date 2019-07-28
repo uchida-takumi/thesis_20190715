@@ -12,7 +12,7 @@ from surprise import Reader
 
 from copy import deepcopy
 
-class algo_wrapper:
+class surprise_algo_wrapper:
     def __init__(self, algo, X_columns={'user':0, 'item':1}):
         self.algo = algo
         self.init_algo = deepcopy(algo)
@@ -58,7 +58,7 @@ if __name__ == 'how to use':
     X, y = data[column_names].values, data[label_name].values
 
     algo = SVD()
-    algo_w = algo_wrapper(algo)
+    algo_w = surprise_algo_wrapper(algo)
 
     algo_w.fit(X, y)
     algo_w.predict(X)

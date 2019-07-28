@@ -18,7 +18,7 @@ label_name = 'rating'
 X, y = data[column_names].values, data[label_name].values
 
 #### for test ####
-#X, y = X[:10000], y[:10000]
+X, y = X[:10000], y[:10000]
 ##################
 max_user = int(X[:,0].max()) + 1; max_item = int(X[:,1].max()) + 1
 
@@ -26,12 +26,12 @@ max_user = int(X[:,0].max()) + 1; max_item = int(X[:,1].max()) + 1
 ########################
 # 2. define same interface of recommendater models
 
-from src.surprise_algo_wrapper import surprise_algo_wrapper
+from src.surprise_algo_wrapper import algo_wrapper
 from src.keras_model_wrapper import keras_model_wrapper
 
 from surprise import SVD
 svd = SVD()
-svd = surprise_algo_wrapper(svd)
+svd = algo_wrapper(svd)
 
 from src.DNN_recommender import RFNN
 rfnn = RFNN(max_user, max_item, embedding_size=8, dnn_hidden_units=(128, 128), l2_reg_embedding=1e-5)
