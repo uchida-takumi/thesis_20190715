@@ -134,12 +134,12 @@ def total_mean_result_dict(result_dict):
     
     keys = [key for key in result_dict if re.match(r'metrics_by_', key)]
     def _groupby_mean(key):
-        _df = pd.concat(cv_result[key])
+        _df = pd.concat(result_dict[key])
         return _df.groupby(by=_df.index).mean()         
     _dict1 = {key:_groupby_mean(key) for key in keys}
     
     _dict0.update(_dict1)
-    return _dict1
+    return _dict0
     
     
 
@@ -164,15 +164,6 @@ if __name__ == 'how to use':
     cv_result = cv(svd, X, y, k_hold=3)
     
     # MAEs
-    print(cv_result['MAE'])
-    
-    # metrics keys
+    print(cv_result['each_k_hold']['MAE'])    
     print(cv_result.keys())
-    
-    # group by label
-    _df = pd.concat(cv_result['metrics_by_labeled_item'])
-    total_mean_df = _df.groupby(by=_df.index).mean()
-    print(total_mean_df)
-    
-    
     

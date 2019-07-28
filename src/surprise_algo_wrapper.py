@@ -13,7 +13,7 @@ from surprise import Reader
 from copy import deepcopy
 
 class surprise_algo_wrapper:
-    def __init__(self, algo, X_columns={'user':0, 'item':1}):
+    def __init__(self, algo, X_columns={'user':0, 'item':1, 'timestamp':2}):
         self.algo = algo
         self.init_algo = deepcopy(algo)
         self.X_columns = X_columns
