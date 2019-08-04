@@ -42,6 +42,96 @@ rwd = R_Wide_and_Deep(max_user, max_item, embedding_size=8, dnn_hidden_units=(12
 rwd = keras_model_wrapper(rwd, epochs=5,batch_size=128)
 
 
+
+''' 結果分析用
+# svd に比べ、表現力の広いDeepLearningはhitの性能が劣る。
+# しかし、これを悪いとは決定づけることはできない。未知の最適な組み合わせを上位にあげている可能性を否定できない。
+
+
+import numpy as np
+import pandas as pd
+X_train, y_train = X[:80000], y[:80000]
+X_test, y_test = X[80000:], y[80000:]
+
+svd = SVD()
+svd = surprise_algo_wrapper(svd)
+
+#model = RFNN(max_user, max_item, embedding_size=8, fix_global_bias=None, dnn_hidden_units=(128, 128), l2_reg=1e-5)
+#rfnn = keras_model_wrapper(model, epochs=5,batch_size=128)
+
+#model = RFNN(max_user, max_item, embedding_size=8, fix_global_bias=y_train.mean(), dnn_hidden_units=(128, 128), l2_reg=1e-5)
+#rfnn_fix = keras_model_wrapper(model, epochs=5,batch_size=128)
+
+model = R_Wide_and_Deep(max_user, max_item, embedding_size=8, fix_global_bias=None, dnn_hidden_units=(128, 128), l2_reg=1e-5)
+rwd = keras_model_wrapper(model, epochs=5,batch_size=128)
+
+#model = R_Wide_and_Deep(max_user, max_item, embedding_size=8, fix_global_bias=y_train.mean(), dnn_hidden_units=(128, 128), l2_reg=1e-5)
+#rwd_fix = keras_model_wrapper(model, epochs=5,batch_size=128)
+
+#model = R_Wide_and_Deep(max_user, max_item, embedding_size=4, fix_global_bias=y_train.mean(), dnn_hidden_units=(32, 32), l2_reg=1e-5)
+#rwd_fix_simple = keras_model_wrapper(model, epochs=5,batch_size=128)
+
+model = R_Wide_and_Deep(max_user, max_item, embedding_size=8, fix_global_bias=y_train.mean(), dnn_hidden_units=(128, 128), l2_reg=0.002)
+rwd_fix_reg = keras_model_wrapper(model, epochs=5,batch_size=128)
+
+#model = R_Wide_and_Deep(max_user, max_item, embedding_size=8, fix_global_bias=y_train.mean(), dnn_hidden_units=(128, 128), l2_reg=1e-5)
+#rwd_fix_epoch = keras_model_wrapper(model, epochs=20,batch_size=128)
+
+
+
+svd.fit(X_train, y_train)
+#rfnn.fit(X_train, y_train)
+#rfnn_fix.fit(X_train, y_train)
+#rwd.fit(X_train, y_train)
+rwd_fix.fit(X_train, y_train)
+#rwd_fix_simple.fit(X_train, y_train)
+rwd_fix_reg.fit(X_train, y_train)
+#rwd_fix_epoch.fit(X_train, y_train)
+
+
+
+top_X_test = X_test[y_test>=5]
+for i in range(30):
+    x_test = top_X_test[np.random.choice(range(top_X_test.shape[0]))]
+    # create _X whose 0-indice is x_test and others is noise_items.
+    noise_items = np.random.choice(np.unique(X[:,1]), replace=False, size=50)
+    n_noise = len(noise_items)
+    _X = np.array([x_test]*(n_noise+1))
+    _X[1:, 1] = np.array(noise_items)       
+    # get predict
+    socre_dict = {}
+    #socre_dict['rfnn'] = rfnn.predict(_X)
+    #socre_dict['rwd'] = rwd.predict(_X)
+    #socre_dict['rwd_fix_simple'] = rwd_fix_simple.predict(_X)
+    socre_dict['svd'] = svd.predict(_X)
+    socre_dict['rfnn_fix'] = rfnn_fix.predict(_X)
+    socre_dict['rwd_fix'] = rwd_fix.predict(_X)
+    socre_dict['rwd_fix_reg'] = rwd_fix_reg.predict(_X)
+    socre_dict['rwd_fix_epoch'] = rwd_fix_epoch.predict(_X)
+
+    _df = pd.DataFrame(socre_dict)
+
+    #_df['svd-rfnn'] = socre_dict['svd'] - socre_dict['rfnn']
+    #_df['svd-rwd'] = socre_dict['svd'] - socre_dict['rwd']
+    #_df['svd-rwd_fix_simple'] = socre_dict['svd'] - socre_dict['rwd_fix_simple']
+    _df['svd-rwd_fix'] = socre_dict['svd'] - socre_dict['rwd_fix']
+    _df['svd-rwd_fix_reg'] = socre_dict['svd'] - socre_dict['rwd_fix_reg']
+
+    #print(_df)
+    #print(_df.describe())
+    print(_df[['svd','rwd_fix','rwd_fix_reg','rwd_fix_epoch']].plot())
+
+
+rfnn.model.variables
+'''
+
+
+
+
+
+
+
+
 ########################
 # 3. evaluate models with src/modules/evaluatinos/*
 from src.evaluation import cv
@@ -80,9 +170,6 @@ if __name__ == 'grid search':
             {'embedding_size':8, 'dnn_hidden_units':(128,128), 'l2_reg':1e-5, 'drop_out_rate':0.3},
             {'embedding_size':8, 'dnn_hidden_units':(128,128), 'l2_reg':1e-5, 'drop_out_rate':0.5},
             ]
-    
-    
-    
     
     results = []
     for arg in args:

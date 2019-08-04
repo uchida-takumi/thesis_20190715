@@ -2,17 +2,29 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras.layers import Input, Dense, Embedding, Flatten, Concatenate
-from tensorflow.keras import regularizers, initializers, optimizers, losses
+from tensorflow.keras.layers import Input, Dense, Embedding, Flatten, Concatenate, Lambda
+from tensorflow.keras import regularizers, initializers, optimizers, losses, backend
 from tensorflow.keras.models import Model
+
 
 almost0init = initializers.RandomUniform(minval=-1e-5, maxval=1e-5)
 
-def RFNN(max_user, max_item, 
-         embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):    
+def RFNN(max_user, max_item, fix_global_bias=None,
+         embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):  
+    '''
+    ARGUMENT
+    -------------
+    max_user [int]:
+        max id number of user.
+    max_item [int]:
+        max id number of item.
+    fix_global_bias [int or None]:
+        fix global_bias as inputted int. if None, trained global_bias as weight.        
+    '''
     # --- INPUT --- #
     input_user = Input(shape=(1,), name='user')
     input_item = Input(shape=(1,), name='item')
+    
 
     # --- Embedding --- #
     user_embedding = id_embedding(
@@ -26,11 +38,7 @@ def RFNN(max_user, max_item,
     x = multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name='hidden')
 
     # --- OUTPUT --- #
-    output = Dense(
-                    1, activation=None, use_bias=True,
-                    kernel_regularizer=regularizers.l2(l2_reg),
-                    name='output'
-                   )(x)
+    output = output_dense(x, fix_global_bias, l2_reg, name='output')
     
     # --- build as MODEL --- #
     model = Model(inputs=[input_user, input_item], outputs=[output])
@@ -43,8 +51,18 @@ def RFNN(max_user, max_item,
     return model
     
 
-def R_Wide_and_Deep(max_user, max_item, 
+def R_Wide_and_Deep(max_user, max_item, fix_global_bias=None,
          embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):
+    '''
+    ARGUMENT
+    -------------
+    max_user [int]:
+        max id number of user.
+    max_item [int]:
+        max id number of item.
+    fix_global_bias [int or None]:
+        fix global_bias as inputted int. if None, trained global_bias as weight.        
+    '''
     
     # --- INPUT --- #
     input_user = Input(shape=(1,), name='user')
@@ -66,19 +84,14 @@ def R_Wide_and_Deep(max_user, max_item,
     item_embedding = id_embedding(
             input_item, max_item, embedding_size, l2_reg, sufix_name='deep_item')    
     deep_x = Concatenate(name='deep_user_item_concatenate'
-                    )([user_embedding, item_embedding])
-    
+                    )([user_embedding, item_embedding])    
     deep_x = multiple_hidden(
             deep_x, dnn_hidden_units, l2_reg, prefix_name='deep_hidden')
     
     # --- OUTPUT --- #
     x = Concatenate(name='wide_deep_concatenate'
                     )([wide_x, deep_x])
-    output = Dense(
-                    1, activation=None, use_bias=True,
-                    kernel_regularizer=regularizers.l2(l2_reg),
-                    name='output'
-                   )(x)
+    output = output_dense(x, fix_global_bias, l2_reg, name='output')
 
     # --- build as MODEL --- #
     model = Model(inputs=[input_user, input_item], outputs=[output])
@@ -112,11 +125,55 @@ def multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name):
     for i,d in enumerate(dnn_hidden_units):
         x = Dense(
                 d, activation='relu', use_bias=True, 
+                bias_initializer='zeros',
                 kernel_regularizer=regularizers.l2(l2_reg),
                 name=prefix_name+'_{}'.format(i)
                 )(x)
     return x
 
+def output_dense(x, fix_global_bias, l2_reg, name):
+    if fix_global_bias is None:
+        use_bias=True
+        global_bias = 0
+    else:
+        use_bias=False
+        global_bias = fix_global_bias
+
+    x = Dense( 1, activation=None, use_bias=use_bias,
+                    kernel_regularizer=regularizers.l2(l2_reg),
+                    name=name+'0'
+                   )(x)    
+    x = Lambda(lambda o:o + global_bias, name=name)(x) 
+    return x    
+
+
+
+
+
+""" Not Used
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Layer
+class constant_bias_Dense(Layer):
+    ''' customize Dense laywer whose bias is constance ''' 
+    def __init__(self, output_dim, const_bias=0, **kwargs):
+        self.output_dim = output_dim
+        self.const_bias = const_bias
+        super(constant_bias_Dense, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        # Create a trainable weight variable for this layer.
+        self.kernel = self.add_weight(name='kernel', 
+                                      shape=(input_shape[1], self.output_dim),
+                                      initializer='uniform',
+                                      trainable=True)
+        super(constant_bias_Dense, self).build(input_shape)  # Be sure to call this at the end
+
+    def call(self, x):
+        return K.dot(x, self.kernel) + self.const_bias
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], self.output_dim)
+"""
     
 #####################
 if __name__ == 'how to use':    
@@ -148,6 +205,15 @@ if __name__ == 'how to use':
     
     # predcit on new ids
     model.predict(x={'user':np.array([0,0,1]), 'item':np.array([0,1,0])})
+
+    # --- RFNN with fix_global_bias ---
+    model = RFNN(max_user, max_item, fix_global_bias=10)    
+    model.fit(
+            x={'user':X[:,0], 'item':X[:,1]}, 
+            y={'output':y},
+            batch_size=1, epochs=20)
+    model.predict(x={'user':X[:,0], 'item':X[:,1]})
+    
         
     # --- R_Wide_and_Deep --- 
     model = R_Wide_and_Deep(max_user, max_item)    
@@ -162,6 +228,13 @@ if __name__ == 'how to use':
     # predcit on new ids
     model.predict(x={'user':np.array([0,0,1]), 'item':np.array([0,1,0])})
     
+    # --- RFNN with fix_global_bias ---
+    model = R_Wide_and_Deep(max_user, max_item, fix_global_bias=10)    
+    model.fit(
+            x={'user':X[:,0], 'item':X[:,1]}, 
+            y={'output':y},
+            batch_size=1, epochs=20)
+    model.predict(x={'user':X[:,0], 'item':X[:,1]})
     
     
     
