@@ -15,7 +15,7 @@ import multiprocessing as mp
 
 
 def cv(model, X, y, k_hold=5, 
-       need_hit=True, hit_threshold=5,
+       need_hit=True, hit_threshold=5, hit_max_sample=1000,
        detail=False, seed=123):
     """
     Cross-Validation on a recommender system model.
@@ -60,17 +60,18 @@ def cv(model, X, y, k_hold=5,
         
                 
         if need_hit:
+            
             hit_indice = (y_test>=hit_threshold)
-            result_df['rank'] = np.nan
+            result_df['rank'] = np.nan            
+            result_df['rank'][hit_indice][:hit_max_sample] = np.array(
+                    [get_rank(model, x_test, noise_items) for x_test in X_test[hit_indice][:hit_max_sample]]
+                    )
+            '''
             # run as multiprocess
-            pool = mp.Pool(mp.cpu_count())
+            pool = mp.Pool(mp.cpu_count())            
             mp_args = [(model, x_test, noise_items) for x_test in X_test[hit_indice]]
             mp_result = pool.map(get_rank_for_multiprocessing, mp_args)
             result_df['rank'][hit_indice] = np.array(mp_result)
-            '''
-            result_df['rank'][hit_indice] = np.array(
-                    [get_rank(model, x_test, noise_items) for x_test in X_test[hit_indice]]
-                    )
             '''
             for top_n in [5,10,20,30,40,50,100]:
                 column = 'hit_top_{}'.format(top_n)
