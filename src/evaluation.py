@@ -11,6 +11,8 @@ import pandas as pd
 from src import util
 from collections import defaultdict, Counter
 
+import multiprocessing as mp
+
 
 def cv(model, X, y, k_hold=5, 
        need_hit=True, hit_threshold=5,
@@ -45,7 +47,7 @@ def cv(model, X, y, k_hold=5,
         model.fit(X_train, y_train)
         predict = model.predict(X_test)
         
-        # set result to result_df
+        # set result to result_df        
         result_df = pd.DataFrame(X_test, columns=sorted(model.X_columns, key=lambda x:model.X_columns[x]))        
         labeled_user, labeled_item = label_id(X_train, X_test, X_columns=model.X_columns)
         result_df['labeled_user'], result_df['labeled_item'] = labeled_user, labeled_item
@@ -60,9 +62,16 @@ def cv(model, X, y, k_hold=5,
         if need_hit:
             hit_indice = (y_test>=hit_threshold)
             result_df['rank'] = np.nan
+            # run as multiprocess
+            pool = mp.Pool(mp.cpu_count())
+            mp_args = [(model, x_test, noise_items) for x_test in X_test[hit_indice]]
+            mp_result = pool.map(get_rank_for_multiprocessing, mp_args)
+            result_df['rank'][hit_indice] = np.array(mp_result)
+            '''
             result_df['rank'][hit_indice] = np.array(
                     [get_rank(model, x_test, noise_items) for x_test in X_test[hit_indice]]
                     )
+            '''
             for top_n in [5,10,20,30,40,50,100]:
                 column = 'hit_top_{}'.format(top_n)
                 result_df[column] = np.nan
@@ -108,6 +117,11 @@ def get_rank(model, x_test, noise_items):
     scores = model.predict(_X)
     rank = util.get_rank(scores, target_indice=0)        
     return rank   
+
+def get_rank_for_multiprocessing(tuple_arg):
+    model, x_test, noise_items = tuple_arg
+    return get_rank(model, x_test, noise_items)
+
         
 def label_id(X_train, X_test, X_columns={'user':0, 'item':1},
              bins=[0,10,20,30,40,50,np.inf], new_name='000_(0.0, 0.0)'):
