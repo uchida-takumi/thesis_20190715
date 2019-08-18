@@ -15,3 +15,13 @@ docker-run-bash:
 	docker run -it --rm -v $(THIS_DIR):$(DOCKER_DIR) \
 		hogefuga:latest \
 		/bin/bash
+
+docker-run-bash-gpu:
+	docker run -it --rm -v $(THIS_DIR):$(DOCKER_DIR) --runtime=nvidia\
+		hogefuga:latest \
+		/bin/bash
+
+docker-run-jupyter:
+	docker run -it --rm -v $(THIS_DIR):$(DOCKER_DIR) --runtime=nvidia -p 8888:8888\
+		hogefuga:latest \
+        jupyter notebook
