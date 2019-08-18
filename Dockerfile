@@ -9,16 +9,15 @@ WORKDIR /docker_work
 ADD . .
 
 # download data
-RUN mkdir data
-RUN cd data
+#RUN mkdir data
+#RUN cd data
 ## MovieLens small data
-RUN curl -OL http://files.grouplens.org/datasets/movielens/ml-latest-small.zip
-RUN unzip ml-latest-small.zip
+#RUN curl -OL http://files.grouplens.org/datasets/movielens/ml-latest-small.zip
+#RUN unzip ml-latest-small.zip
 ## MovieLens 20m data (recommended for research)
-RUN curl -OL http://files.grouplens.org/datasets/movielens/ml-20m.zip
-RUN unzip ml-20m.zip
-
-RUN cd ..
+#RUN curl -OL http://files.grouplens.org/datasets/movielens/ml-20m.zip
+#RUN unzip ml-20m.zip
+#RUN cd ..
 
 # RUN install requirements
 RUN pip install -r requirements.txt
