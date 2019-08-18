@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras.layers import Input, Dense, Embedding, Flatten, Concatenate, Lambda
-from tensorflow.keras import regularizers, initializers, optimizers, losses, backend
+from tensorflow.keras import regularizers, initializers, optimizers, losses
 from tensorflow.keras.models import Model
 
 
 almost0init = initializers.RandomUniform(minval=-1e-5, maxval=1e-5)
+
 
 def RFNN(max_user, max_item, fix_global_bias=None,
          embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):  
@@ -19,12 +18,17 @@ def RFNN(max_user, max_item, fix_global_bias=None,
     max_item [int]:
         max id number of item.
     fix_global_bias [int or None]:
-        fix global_bias as inputted int. if None, trained global_bias as weight.        
+        fix global_bias as inputted int. if None, trained global_bias as weight.
+    embedding_size [int]:
+        latent factor number.
+    dnn_hidden_units [array]:
+        hidden layer size. (ex.) dnn_hidden_units=(62, 128, 62)
+    l2_reg [float]:
+        L2 reguralization.        
     '''
     # --- INPUT --- #
     input_user = Input(shape=(1,), name='user')
-    input_item = Input(shape=(1,), name='item')
-    
+    input_item = Input(shape=(1,), name='item')    
 
     # --- Embedding --- #
     user_embedding = id_embedding(
@@ -46,7 +50,7 @@ def RFNN(max_user, max_item, fix_global_bias=None,
     ## compile 
     model.compile(
             optimizer=optimizers.Adam(),
-            loss=losses.mean_absolute_error
+            loss=losses.mean_squared_error
             )    
     return model
     
@@ -61,7 +65,13 @@ def R_Wide_and_Deep(max_user, max_item, fix_global_bias=None,
     max_item [int]:
         max id number of item.
     fix_global_bias [int or None]:
-        fix global_bias as inputted int. if None, trained global_bias as weight.        
+        fix global_bias as inputted int. if None, trained global_bias as weight.
+    embedding_size [int]:
+        latent factor number.
+    dnn_hidden_units [array]:
+        hidden layer size. (ex.) dnn_hidden_units=(62, 128, 62)
+    l2_reg [float]:
+        L2 reguralization.        
     '''
     
     # --- INPUT --- #
@@ -99,7 +109,7 @@ def R_Wide_and_Deep(max_user, max_item, fix_global_bias=None,
     ## compile 
     model.compile(
             optimizer=optimizers.Adam(),
-            loss=losses.mean_absolute_error
+            loss=losses.mean_squared_error
             )    
     
     return model
@@ -122,6 +132,8 @@ def id_binary_embedding(input_, max_, l2_reg, sufix_name):
     return id_embedding(input_, max_, 1, l2_reg, sufix_name)
 
 def multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name):
+    if isinstance(dnn_hidden_units, int):
+        dnn_hidden_units = [dnn_hidden_units]
     for i,d in enumerate(dnn_hidden_units):
         x = Dense(
                 d, activation='relu', use_bias=True, 

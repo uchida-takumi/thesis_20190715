@@ -1,21 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import uuid 
-
 
 class keras_model_wrapper:
-    def __init__(self, model, epochs=5, batch_size=128, 
-                 X_columns={'user':0, 'item':1, 'timestamp':2}):
-        self.model = model
+    def __init__(self, model_module, model_init_dict={}, 
+                 epochs=5, batch_size=128, 
+                 X_columns={'user':0, 'item':1, 'timestamp':2}):        
+        self.model = model_module(**model_init_dict)
+        self.model_module = model_module
+        self.model_init_dict = model_init_dict
         self.epochs = epochs
         self.batch_size = batch_size
         self.X_columns = X_columns
-        
-        # save model to disc for self.reset()
-        self.original_model_save_fp = '/tmp/delete/{}'.format(str(uuid.uuid4()))
-        model.save_weights(self.original_model_save_fp)
-        
+                
         
     def fit(self, X, y):
         X_dict = self._get_X_dict(X)
@@ -29,7 +26,7 @@ class keras_model_wrapper:
         return predict.squeeze()
 
     def reset(self):
-        self.model.load_weights( self.original_model_save_fp)
+        self.model = self.model_module(**self.model_init_dict)
         
     def _get_X_dict(self, X):
         X_dict = {}
@@ -57,8 +54,7 @@ if __name__ == 'how to use':
     X, y = data[column_names].values, data[label_name].values
     
     max_user, max_item = X[:,0].max()+1, X[:,1].max()+1
-    model = RFNN(max_user, max_item)
-    model = keras_model_wrapper(model)
+    model = keras_model_wrapper(RFNN, dict(max_user=max_user, max_item=max_item))
 
     model.fit(X, y)
     model.predict(X)

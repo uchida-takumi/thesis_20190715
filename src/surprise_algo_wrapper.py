@@ -6,6 +6,7 @@ wrapper function for suprise.alogo to be able to use
 """
 
 import pandas as pd
+import numpy as np
 
 from surprise import Dataset
 from surprise import Reader
@@ -25,7 +26,7 @@ class surprise_algo_wrapper:
         predicted_result = []
         for u,i in X[:, [self.X_columns['user'], self.X_columns['item']]]:
             predicted_result.append(self.algo.predict(u,i).est)
-        return predicted_result
+        return np.array(predicted_result)
     
     def reset(self):
         self.algo = self.init_algo

@@ -1,0 +1,5 @@
+
+[submodule "src/pyFM"]
+	path = src/pyFM
+	url = https://github.com/uchida-takumi/pyFM
+	branch = "available_regularization#30"

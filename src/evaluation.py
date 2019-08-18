@@ -12,8 +12,9 @@ from src import util
 from collections import defaultdict, Counter
 
 
-def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5, 
-       detail=False, seed=None):
+def cv(model, X, y, k_hold=5, 
+       need_hit=True, hit_threshold=5,
+       detail=False, seed=123):
     """
     Cross-Validation on a recommender system model.
     """
@@ -22,12 +23,13 @@ def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5,
     np.random.seed(seed)
     
     # random split indice set.
-    train_test_indices = [random_split(X, test_rate=0.3) for _ in range(k_hold)]
+    train_test_indices = [random_split(X) for _ in range(k_hold)]
     
     # k_hold
     if need_hit:
         item_indice = model.X_columns['item']
-        noise_items = np.random.choice(np.unique(X[:,item_indice]), replace=False, size=999)
+        size = min(999, np.unique(X[:,item_indice]).size)
+        noise_items = np.random.choice(np.unique(X[:,item_indice]), replace=False, size=size)
 
     result_dict = defaultdict(list)
     for k, (train, test) in enumerate(train_test_indices):
@@ -57,10 +59,9 @@ def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5,
                 
         if need_hit:
             hit_indice = (y_test>=hit_threshold)
-            _X_test = X_test[hit_indice]
             result_df['rank'] = np.nan
             result_df['rank'][hit_indice] = np.array(
-                    [get_rank(model, x_test, noise_items) for x_test in _X_test]
+                    [get_rank(model, x_test, noise_items) for x_test in X_test[hit_indice]]
                     )
             for top_n in [5,10,20,30,40,50,100]:
                 column = 'hit_top_{}'.format(top_n)
@@ -88,13 +89,15 @@ def cv(model, X, y, k_hold=5, need_hit=True, hit_threshold=5,
         
 def random_split(X, test_rate=0.3):
     """
-    return random splitted indices(train_indices, test_indices)
+    return random splitted indices(train, validation, test)
     """
     n_sample = X.shape[0]
-    train_size = n_sample - int(n_sample * test_rate)    
+    test_size = int(n_sample * test_rate)
+    train_size = n_sample - test_size
     all_indices = list(range(n_sample))
-    np.random.shuffle(all_indices)    
-    return np.array(all_indices[:train_size]), np.array(all_indices[train_size:])
+    np.random.shuffle(all_indices)   
+    all_indices = np.array(all_indices)
+    return all_indices[:train_size], all_indices[train_size:]
 
 def get_rank(model, x_test, noise_items):
     # create _X whose 0-indice is x_test and others is noise_items.
@@ -124,7 +127,7 @@ def label_groupby(result_df,
                   by=['labeled_user', 'labeled_item']):    
     _df = result_df.copy(); _df['n_sample'] = 1
     metrics_cols = [col for col in _df.columns if re.match(r'(abs_error|hit_top_)', col)]
-    agg_dict = {col:[np.mean, np.median, np.std] for col in metrics_cols}
+    agg_dict = {col:np.mean for col in metrics_cols}
     agg_dict.update({'n_sample':sum})
     return _df.groupby(by=by).agg(agg_dict)
 
@@ -145,16 +148,16 @@ def total_mean_result_dict(result_dict):
 
 
 if __name__ == 'how to use':
-    
     # load data
     import pandas as pd
     csv_fp = 'data/ml-latest-small/ratings.csv'
     data = pd.read_csv(csv_fp)
-    column_names = ['userId', 'movieId']
+    column_names = ['userId', 'movieId', 'timestamp']
     label_name = 'rating'    
     X, y = data[column_names].values, data[label_name].values
-    X, y = X[:10000], y[:10000] 
+    #X, y = X[:10000], y[:10000] 
 
+    # --- example 1 ---
     # build recommender model and wrap to adjust I/O     
     from src.surprise_algo_wrapper import surprise_algo_wrapper    
     from surprise import SVD
@@ -166,4 +169,24 @@ if __name__ == 'how to use':
     # MAEs
     print(cv_result['each_k_hold']['MAE'])    
     print(cv_result.keys())
+    
+    # --- example 2 ---
+    from src.keras_model_wrapper import keras_model_wrapper 
+    from src.DNN_recommender import R_Wide_and_Deep # Re-FNN
+    max_user, max_item = X[:,0].max()+1, X[:,1].max()+1
+    model_init_dict = dict(max_user=max_user, max_item=max_item, embedding_size=8, dnn_hidden_units=(64), l2_reg=0.010)
+    
+    model = keras_model_wrapper(R_Wide_and_Deep, model_init_dict)
+    
+    # run cv
+    k_hold = 3
+    cv_result = cv(model, X, y, k_hold=k_hold, need_hit=True, seed=999)
+
+    # MAEs
+    print(cv_result['each_k_hold']['MAE'])    
+    print(cv_result['each_k_hold']['metrics_by_labeled_item'][0])  
+    cv_result['each_k_hold']['metrics_by_labeled_item'][0].iloc[:, -4:]
+
+    
+    
     

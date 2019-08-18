@@ -20,27 +20,62 @@ X, y = data[column_names].values, data[label_name].values
 #### for test ####
 #X, y = X[:10000], y[:10000]
 ##################
-max_user = int(X[:,0].max()) + 1; max_item = int(X[:,1].max()) + 1
 
 
 ########################
 # 2. define same interface of recommendater models
+max_user = int(X[:,0].max()) + 1; max_item = int(X[:,1].max()) + 1
 
 from src.surprise_algo_wrapper import surprise_algo_wrapper
 from src.keras_model_wrapper import keras_model_wrapper
 
 from surprise import SVD
-svd = SVD()
-svd = surprise_algo_wrapper(svd)
-
 from src.DNN_recommender import RFNN
-rfnn = RFNN(max_user, max_item, embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5)
-rfnn = keras_model_wrapper(rfnn, epochs=5,batch_size=128) # メモ：epochs=5,batch_size=128が最高性能が出たことを手動で検証。
-
 from src.DNN_recommender import R_Wide_and_Deep
-rwd = R_Wide_and_Deep(max_user, max_item, embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5)
-rwd = keras_model_wrapper(rwd, epochs=5,batch_size=128)
+from src.control_model import random_model, popular_model
 
+random = random_model()
+pop = popular_model()
+
+model = SVD()
+svd = surprise_algo_wrapper(model)
+
+model = RFNN(max_user, max_item, l2_reg=1e-5)
+rfnn = keras_model_wrapper(model)
+
+model = R_Wide_and_Deep(max_user, max_item, l2_reg=1e-5)
+rwd = keras_model_wrapper(model)
+
+model = R_Wide_and_Deep(max_user, max_item, l2_reg=1e-5, fix_global_bias=3.5)
+rwd_fix = keras_model_wrapper(model)
+
+model = R_Wide_and_Deep(max_user, max_item, l2_reg=2e-3)
+rwd_reg = keras_model_wrapper(model)
+
+model = R_Wide_and_Deep(max_user, max_item, l2_reg=2e-3, fix_global_bias=3.5)
+rwd_fix_reg = keras_model_wrapper(model)
+
+########################
+# 3. evaluate models with src/modules/evaluatinos/*
+from src.evaluation import cv
+
+k_hold = 1
+need_hit = True
+
+random_result = cv(random, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+pop_result = cv(pop, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+svd_result  = cv(svd, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rfnn_result = cv(rfnn, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rwd_result  = cv(rwd, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rwd_fix_result = cv(rwd_fix, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rwd_reg_result = cv(rwd_reg, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+rwd_fix_reg_result  = cv(rwd_fix_reg, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
+
+#　結果をcsvで保存しておきます。
+for model_name, _result in [('random',random_result), ('pop',pop_result), ('svd',svd_result), ('rfnn',rfnn_result), ('rwd',rwd_result), ('rwd_fix',rwd_fix_result), ('rwd_reg',rwd_reg_result), ('rwd_fix_reg',rwd_fix_reg_result)]:
+    for key in ['metrics_by_labeled_user', 'metrics_by_labeled_item', 'metrics_by_labeled_user_item']:
+        fp = os.path.join('output', '.'.join([model_name, key, 'csv']))
+        _result['total_mean'][key].to_csv(fp)
 
 
 ''' 結果分析用
@@ -132,21 +167,6 @@ rfnn.model.variables
 
 
 
-########################
-# 3. evaluate models with src/modules/evaluatinos/*
-from src.evaluation import cv
-
-k_hold = 10
-need_hit = True
-
-svd_result  = cv(svd, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
-rfnn_result = cv(rfnn, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
-rwd_result  = cv(rwd, X, y, k_hold=k_hold, need_hit=need_hit, seed=123)
-
-for model_name, _result in [('svd',svd_result), ('rfnn',rfnn_result), ('rwd',rwd_result)]:
-    for key in ['metrics_by_labeled_user', 'metrics_by_labeled_item', 'metrics_by_labeled_user_item']:
-        fp = os.path.join('output', '.'.join([model_name, key, 'csv']))
-        _result['total_mean'][key].to_csv(fp)
     
 
 
