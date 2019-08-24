@@ -71,7 +71,7 @@ k_hold = 5
 results = {'total_mean':[], 'metrics_by_labeled_user':[], 'metrics_by_labeled_item':[], 'metrics_by_labeled_user_item':[]}
 
 for name, model in best_models.items():
-    print(f"==== {name} ===")
+    print("==== {} ===".format(name))
     _result = cv(model, X, y, k_hold=k_hold, need_hit=True, seed=999)
     
     # result of total_mean
