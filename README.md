@@ -8,4 +8,4 @@ This is my codes for my study of recommender system.
 
 ↓click here and run on google-colab↓
 
-https://colab.research.google.com/github/uchida-takumi/thesis_20190715/blob/master/work.ipynb
+https://colab.research.google.com/github/uchida-takumi/thesis_20190715/blob/master/work_googlecolab.ipynb
