@@ -13,7 +13,7 @@ column_names = ['userId', 'movieId', 'timestamp']
 label_name = 'rating'
 
 X, y = data[column_names].values, data[label_name].values
-X, y = X[:10000], y[:10000]
+#X, y = X[:10000], y[:10000]
 
 
 # 自作のgrid_search　モジュールを読み込みます。
@@ -23,7 +23,7 @@ from src.grid_search import grid_search
 
 from surprise import SVD  
 from src.surprise_algo_wrapper import surprise_algo_wrapper # I/F統一用のラッパー
-
+'''
 model_module = SVD
 wrapper = surprise_algo_wrapper
 
@@ -39,7 +39,7 @@ best_indice, scores, each_scores = grid_search(X, y, models)
 print('scores={}'.format(scores))
 print('best_param={}'.format(params[best_indice]))
 print('each_scores={}'.format(each_scores))
-
+'''
 
 # モデルを読み込み
 from src.control_model import random_model, popular_model
