@@ -15,7 +15,7 @@ import multiprocessing as mp
 
 
 def cv(model, X, y, k_hold=5, 
-       need_hit=True, hit_threshold=5, hit_max_sample=1000,
+       need_hit=True, hit_threshold=5,
        detail=False, seed=123):
     """
     Cross-Validation on a recommender system model.
@@ -59,12 +59,11 @@ def cv(model, X, y, k_hold=5,
         result_df['abs_error'] = np.abs(predict - y_test)
         
                 
-        if need_hit:
-            
+        if need_hit:            
             hit_indice = (y_test>=hit_threshold)
-            result_df['rank'] = np.nan            
-            result_df['rank'][hit_indice][:hit_max_sample] = np.array(
-                    [get_rank(model, x_test, noise_items) for x_test in X_test[hit_indice][:hit_max_sample]]
+            result_df['rank'] = np.nan
+            result_df['rank'][hit_indice] = np.array(
+                    [get_rank(model, x_test, noise_items) for x_test in X_test[hit_indice]]
                     )
             '''
             # run as multiprocess
@@ -170,19 +169,20 @@ if __name__ == 'how to use':
     column_names = ['userId', 'movieId', 'timestamp']
     label_name = 'rating'    
     X, y = data[column_names].values, data[label_name].values
-    #X, y = X[:10000], y[:10000] 
+    X, y = X[:10000], y[:10000] 
 
     # --- example 1 ---
     # build recommender model and wrap to adjust I/O     
     from src.surprise_algo_wrapper import surprise_algo_wrapper    
     from surprise import SVD
-    svd = surprise_algo_wrapper(SVD())
+    model = surprise_algo_wrapper(SVD())
     
     # run cv
-    cv_result = cv(svd, X, y, k_hold=3)
+    cv_result = cv(model, X, y, k_hold=2)
     
     # MAEs
     print(cv_result['each_k_hold']['MAE'])    
+    print(cv_result['each_k_hold']['hit_top_50_precision'])    
     print(cv_result.keys())
     
     # --- example 2 ---
