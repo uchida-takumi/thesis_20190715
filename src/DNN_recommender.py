@@ -8,7 +8,7 @@ from tensorflow.keras.models import Model
 almost0init = initializers.RandomUniform(minval=-1e-5, maxval=1e-5)
 
 
-def RFNN(max_user, max_item, fix_global_bias=None,
+def FNN(max_user, max_item, fix_global_bias=None,
          embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):  
     '''
     ARGUMENT
@@ -55,7 +55,7 @@ def RFNN(max_user, max_item, fix_global_bias=None,
     return model
     
 
-def R_Wide_and_Deep(max_user, max_item, fix_global_bias=None,
+def Wide_and_Deep(max_user, max_item, fix_global_bias=None,
          embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):
     '''
     ARGUMENT
@@ -205,8 +205,8 @@ if __name__ == 'how to use':
             ])    
     max_user, max_item = X[:,0].max()+1, X[:,1].max()+1
     
-    # --- RFNN --- 
-    model = RFNN(max_user, max_item)    
+    # --- FNN --- 
+    model = FNN(max_user, max_item)    
     model.fit(
             x={'user':X[:,0], 'item':X[:,1]}, 
             y={'output':y},
@@ -218,8 +218,8 @@ if __name__ == 'how to use':
     # predcit on new ids
     model.predict(x={'user':np.array([0,0,1]), 'item':np.array([0,1,0])})
 
-    # --- RFNN with fix_global_bias ---
-    model = RFNN(max_user, max_item, fix_global_bias=10)    
+    # --- FNN with fix_global_bias ---
+    model = FNN(max_user, max_item, fix_global_bias=10)    
     model.fit(
             x={'user':X[:,0], 'item':X[:,1]}, 
             y={'output':y},
@@ -227,8 +227,8 @@ if __name__ == 'how to use':
     model.predict(x={'user':X[:,0], 'item':X[:,1]})
     
         
-    # --- R_Wide_and_Deep --- 
-    model = R_Wide_and_Deep(max_user, max_item)    
+    # --- Wide_and_Deep --- 
+    model = Wide_and_Deep(max_user, max_item)    
     model.fit(
             x={'user':X[:,0], 'item':X[:,1]}, 
             y={'output':y},
@@ -240,8 +240,8 @@ if __name__ == 'how to use':
     # predcit on new ids
     model.predict(x={'user':np.array([0,0,1]), 'item':np.array([0,1,0])})
     
-    # --- RFNN with fix_global_bias ---
-    model = R_Wide_and_Deep(max_user, max_item, fix_global_bias=10)    
+    # --- Wide_and_Deep with fix_global_bias ---
+    model = Wide_and_Deep(max_user, max_item, fix_global_bias=10)    
     model.fit(
             x={'user':X[:,0], 'item':X[:,1]}, 
             y={'output':y},
