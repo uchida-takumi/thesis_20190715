@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import re
+import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Embedding, Flatten, Concatenate, Lambda
 from tensorflow.keras import regularizers, initializers, optimizers, losses
 from tensorflow.keras.models import Model
 
-
 almost0init = initializers.RandomUniform(minval=-1e-5, maxval=1e-5)
 
-
 def FNN(max_user, max_item, fix_global_bias=None,
-         embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):  
+        embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):  
     '''
     ARGUMENT
     -------------
@@ -17,6 +17,10 @@ def FNN(max_user, max_item, fix_global_bias=None,
         max id number of user.
     max_item [int]:
         max id number of item.
+    max_new_user [int]:
+        max id number of addtional user when transfer learning.
+    max_new_item [int]:
+        max id number of addtional item when transfer learning.        
     fix_global_bias [int or None]:
         fix global_bias as inputted int. if None, trained global_bias as weight.
     embedding_size [int]:
@@ -55,8 +59,10 @@ def FNN(max_user, max_item, fix_global_bias=None,
     return model
     
 
-def Wide_and_Deep(max_user, max_item, fix_global_bias=None,
-         embedding_size=8, dnn_hidden_units=(128, 128), l2_reg=1e-5):
+def Wide_and_Deep(max_user, max_item, 
+                  add_max_user=None, add_max_item=None, 
+                  fix_global_bias=None, embedding_size=8, 
+                  dnn_hidden_units=(128, 128), l2_reg=1e-5):
     '''
     ARGUMENT
     -------------
@@ -80,19 +86,43 @@ def Wide_and_Deep(max_user, max_item, fix_global_bias=None,
     
     # --- WIDE part --- #
     ## binary embedding
-    user_binary_embedding = id_binary_embedding(
-            input_user, max_user, l2_reg, sufix_name='wide_user')
-    item_binary_embedding = id_binary_embedding(
-            input_item, max_item, l2_reg, sufix_name='wide_item')    
+    if add_max_user is None:
+        user_binary_embedding = id_binary_embedding(
+                input_user, max_user, l2_reg, sufix_name='wide_user')
+    else:
+        user_binary_embedding = sep_id_binary_embedding(
+                input_user, max_user, add_max_user, l2_reg, sufix_name='wide_user')
+    if add_max_item is None:
+        item_binary_embedding = id_binary_embedding(
+                input_item, max_item, l2_reg, sufix_name='wide_item')    
+    else:
+        item_binary_embedding = sep_id_binary_embedding(
+                input_item, max_item, add_max_item, l2_reg, sufix_name='wide_item')
+        
     wide_x = Concatenate(name='wide_user_item_concatenate'
                          )([user_binary_embedding, item_binary_embedding])
+
     
     # --- DEEP part --- #
     ## embbedding
-    user_embedding = id_embedding(
-            input_user, max_user, embedding_size, l2_reg, sufix_name='deep_user')
-    item_embedding = id_embedding(
-            input_item, max_item, embedding_size, l2_reg, sufix_name='deep_item')    
+    if add_max_user is None:
+        user_embedding = id_embedding(
+                input_user, max_user, embedding_size, l2_reg, 
+                sufix_name='deep_user')
+    else:
+        user_embedding = sep_id_embedding(
+                input_user, max_user, add_max_user, embedding_size, l2_reg, 
+                sufix_name='deep_user')    
+        
+    if add_max_item is None:
+        item_embedding = id_embedding(
+                input_item, max_item, embedding_size, l2_reg, 
+                sufix_name='deep_item')    
+    else:
+        item_embedding = sep_id_embedding(
+                input_item, max_item, add_max_item, embedding_size, l2_reg, 
+                sufix_name='deep_item')    
+        
     deep_x = Concatenate(name='deep_user_item_concatenate'
                     )([user_embedding, item_embedding])    
     deep_x = multiple_hidden(
@@ -114,6 +144,25 @@ def Wide_and_Deep(max_user, max_item, fix_global_bias=None,
     
     return model
     
+def fine_tunning_compile_Wide_and_Deep(model):
+    train_stop_layers = [
+            'embedding_pre_id_deep_user',
+            'embedding_pre_id_deep_item',
+            'deep_hidden_',
+            ]    
+    # change not-trainable to finetuning
+    for layer in model.layers:
+        if layer.trainable and len(layer.variables):
+            for pattern in train_stop_layers:
+                if re.match(pattern, layer.name):
+                    layer.trainable = False
+    # need to re-compile to make availble trainable change 
+    model.compile(
+            optimizer=optimizers.Adam(),
+            loss=losses.mean_squared_error
+            )    
+    return model
+
 
 #####################
 # sub module
@@ -128,9 +177,40 @@ def id_embedding(input_, max_, embedding_size, l2_reg, sufix_name):
     id_embedding = Flatten(name='flatten_{}'.format(sufix_name))(id_embedding)
     return id_embedding
 
+def sep_id_embedding(input_, pre_max_, add_max_, embedding_size, l2_reg, sufix_name):
+    '''
+    import numpy as np   
+    import tensorflow as tf
+    pre_max_, add_max_ = 3, 2
+    input_ = np.random.choice(range(pre_max_+add_max_), size=20)
+    input_ = tf.convert_to_tensor(input_)
+    sufix_name = 'sep_id_embedding'
+    '''
+    dtype = input_.dtype
+    pre_masking = tf.cast(input_<pre_max_,  dtype=dtype, name='pre_masking_'+sufix_name)
+    add_masking = tf.cast(input_>=pre_max_, dtype=dtype, name='add_masking_'+sufix_name)
+    pre_input_ = pre_masking * (input_ + 1)
+    add_input_ = add_masking * (input_ - pre_max_ + 1)
+    pre_id_embedding = id_embedding(
+            pre_input_, pre_max_+1, embedding_size, l2_reg, 
+            sufix_name='pre_id_'+sufix_name)
+    add_id_embedding = id_embedding(
+            add_input_, add_max_+1, embedding_size, l2_reg, 
+            sufix_name='add_id_'+sufix_name)    
+    pre_add_id_embedding = tf.add(
+            pre_id_embedding * tf.reshape(tf.cast(pre_masking, dtype=tf.float32), shape=(-1,1)),
+            add_id_embedding * tf.reshape(tf.cast(add_masking, dtype=tf.float32), shape=(-1,1)),
+            name='pre_add_id_'+sufix_name
+            )
+    return pre_add_id_embedding
+
 def id_binary_embedding(input_, max_, l2_reg, sufix_name):
     return id_embedding(input_, max_, 1, l2_reg, sufix_name)
 
+def sep_id_binary_embedding(input_, pre_max_, add_max_, l2_reg, sufix_name):
+    return sep_id_embedding(input_, pre_max_, add_max_, 1, l2_reg, sufix_name)
+
+    
 def multiple_hidden(x, dnn_hidden_units, l2_reg, prefix_name):
     if isinstance(dnn_hidden_units, int):
         dnn_hidden_units = [dnn_hidden_units]
@@ -159,33 +239,6 @@ def output_dense(x, fix_global_bias, l2_reg, name):
     return x    
 
 
-
-
-
-""" Not Used
-from tensorflow.keras import backend as K
-from tensorflow.keras.layers import Layer
-class constant_bias_Dense(Layer):
-    ''' customize Dense laywer whose bias is constance ''' 
-    def __init__(self, output_dim, const_bias=0, **kwargs):
-        self.output_dim = output_dim
-        self.const_bias = const_bias
-        super(constant_bias_Dense, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        # Create a trainable weight variable for this layer.
-        self.kernel = self.add_weight(name='kernel', 
-                                      shape=(input_shape[1], self.output_dim),
-                                      initializer='uniform',
-                                      trainable=True)
-        super(constant_bias_Dense, self).build(input_shape)  # Be sure to call this at the end
-
-    def call(self, x):
-        return K.dot(x, self.kernel) + self.const_bias
-
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], self.output_dim)
-"""
     
 #####################
 if __name__ == 'how to use':    
@@ -249,7 +302,58 @@ if __name__ == 'how to use':
     model.predict(x={'user':X[:,0], 'item':X[:,1]})
     
     
+    # --- fine-tuning on Wide_and_Deep ---
+    model = Wide_and_Deep(max_user, max_item, add_max_user=1, add_max_item=2)    
+    model.fit(
+            x={'user':X[:,0], 'item':X[:,1]}, 
+            y={'output':y},
+            batch_size=1, epochs=20)
     
+    # save weights as 'before' 
+    from copy import deepcopy
+    before_after = {'before':{}, 'after':{}}
+    for layer in model.layers:
+        if layer.name in ['embedding_pre_id_deep_item', 'deep_hidden_0', 'embedding_add_id_deep_item']:
+            before_after['before'][layer.name] = deepcopy(layer.weights)
+    # stop some layer train.
+    model = fine_tunning_compile_Wide_and_Deep(model)
+
+    # set new id data to fit
+    add_X = np.array([
+                [1,4], #new-item
+                [1,5], #new-item
+                [3,1], #new-user
+                [3,5], #new-user, new-item
+            ])     
+    add_y = np.array([
+                2,
+                2,
+                5,
+                4,
+            ])
+    model.fit(
+            x={'user':add_X[:,0], 'item':add_X[:,1]}, 
+            y={'output':add_y},
+            batch_size=1, epochs=20)
     
+    # save weight asd 'after'
+    for layer in model.layers:
+        if layer.name in ['embedding_pre_id_deep_item', 'deep_hidden_0', 'embedding_add_id_deep_item']:
+            before_after['after'][layer.name] = deepcopy(layer.weights)
+            
+    # compair(assert)
+    layer_name =  'embedding_pre_id_deep_item'
+    before_ = before_after['before'][layer_name]
+    after_  = before_after['after'][layer_name]
+    assert (before_[0].numpy() == after_[0].numpy()).all()
+    
+    layer_name =  'deep_hidden_0'
+    before_ = before_after['before'][layer_name]
+    after_  = before_after['after'][layer_name]
+    assert (before_[0].numpy() == after_[0].numpy()).all()
         
+    layer_name =  'embedding_add_id_deep_item'
+    before_ = before_after['before'][layer_name]
+    after_  = before_after['after'][layer_name]
+    assert (before_[0].numpy() == after_[0].numpy()).all()
     
