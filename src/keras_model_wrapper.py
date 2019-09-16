@@ -12,12 +12,17 @@ class keras_model_wrapper:
         self.epochs = epochs
         self.batch_size = batch_size
         self.X_columns = X_columns
-                
-        
-    def fit(self, X, y):
+                        
+    def fit(self, X, y, X_test=None, y_test=None):
         X_dict = self._get_X_dict(X)
         y_dict = self._get_y_dict(y)
-        self.model.fit(X_dict, y_dict, epochs=self.epochs, batch_size=self.batch_size)
+        if (X_test is not None) and (y_test is not None):
+            X_test_dict = self._get_X_dict(X_test)
+            y_test_dict = self._get_y_dict(y_test)
+            self.model.fit(X_dict, y_dict, epochs=self.epochs, batch_size=self.batch_size
+                           ,validation_data=(X_test_dict, y_test_dict))
+        else:
+            self.model.fit(X_dict, y_dict, epochs=self.epochs, batch_size=self.batch_size)
         return self
                         
     def predict(self, X):
@@ -28,6 +33,9 @@ class keras_model_wrapper:
     def reset(self):
         self.model = self.model_module(**self.model_init_dict)
         
+    def get_fit_history(self):
+        return self.model.history.history
+
     def _get_X_dict(self, X):
         X_dict = {}
         for input_name in self.model.input_names:
@@ -41,9 +49,8 @@ class keras_model_wrapper:
         return y_dict
 
 
-
 if __name__ == 'how to use':
-    from src.DNN_recommender import RFNN
+    from src.DNN_recommender import FNN
     # INPUTs
     import pandas as pd
     csv_fp = 'data/ml-latest-small/ratings.csv'
@@ -54,9 +61,18 @@ if __name__ == 'how to use':
     X, y = data[column_names].values, data[label_name].values
     
     max_user, max_item = X[:,0].max()+1, X[:,1].max()+1
-    model = keras_model_wrapper(RFNN, dict(max_user=max_user, max_item=max_item))
+    model = keras_model_wrapper(FNN, dict(max_user=max_user, max_item=max_item))
 
     model.fit(X, y)
     model.predict(X)
     model.reset()
+    
+    # --- get fit history ---
+    X_train, y_train = X[:10000], y[:10000]
+    X_test, y_test = X[10000:], y[10000:]
+    model.fit(X_train, y_train, X_test, y_test)
+    fit_history = model.get_fit_history()
+    print( fit_history['loss'] )
+    print( fit_history['val_loss'] )
+    
     

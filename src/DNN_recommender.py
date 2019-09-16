@@ -355,5 +355,5 @@ if __name__ == 'how to use':
     layer_name =  'embedding_add_id_deep_item'
     before_ = before_after['before'][layer_name]
     after_  = before_after['after'][layer_name]
-    assert (before_[0].numpy() == after_[0].numpy()).all()
+    assert (before_[0].numpy() != after_[0].numpy()).all()
     
